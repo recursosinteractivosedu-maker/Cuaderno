@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cuaderno · Agente de Calificación</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --paper:#FAF6EC;
+    --paper-deep:#F1EADA;
+    --line:#DED2B4;
+    --line-soft:#E8DFC9;
+    --ink:#20303F;
+    --ink-soft:#5A6B78;
+    --ink-faint:#8B9199;
+    --red:#A83A2E;
+    --red-soft:#F1DDD7;
+    --green:#3F7A5C;
+    --green-soft:#DCEBE1;
+    --amber:#B9812E;
+    --amber-soft:#F3E6CE;
+    --blue:#3B5B78;
+    --blue-soft:#DEE7EE;
+    --radius:3px;
+    --shadow:0 1px 0 rgba(32,48,63,0.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans',sans-serif;
+    font-size:14.5px;
+    line-height:1.5;
+    background-image:
+      linear-gradient(var(--paper) 0px, var(--paper) 27px, var(--line-soft) 28px);
+    background-size: 100% 28px;
+  }
+  h1,h2,h3,h4{
+    font-family:'Source Serif 4', serif;
+    font-weight:600;
+    margin:0 0 4px 0;
+    color:var(--ink);
+    letter-spacing:0.1px;
+  }
+  a{color:var(--blue);}
+  #shell{display:flex; min-height:100vh;}
+
+  /* SIDEBAR */
+  #sidebar{
+    width:238px; flex:0 0 238px;
+    background:var(--ink);
+    color:#EDE6D6;
+    padding:22px 14px;
+    position:sticky; top:0; height:100vh; overflow-y:auto;
+  }
+  .brand{
+    font-family:'Source Serif 4',serif;
+    font-size:20px; font-weight:700; color:#F6EFDD;
+    padding:0 8px 16px 8px; border-bottom:1px solid rgba(237,230,214,0.18);
+    margin-bottom:14px;
+  }
+  .brand small{display:block; font-family:'IBM Plex Sans',sans-serif; font-weight:400; font-size:11px; color:#B9BFAF; margin-top:2px;}
+  .nav-item{
+    display:flex; align-items:center; gap:10px;
+    padding:9px 10px; border-radius:var(--radius);
+    cursor:pointer; color:#D9D2BE; font-size:13.5px;
+    margin-bottom:2px; border-left:3px solid transparent;
+  }
+  .nav-item:hover{background:rgba(237,230,214,0.08);}
+  .nav-item.active{background:rgba(237,230,214,0.13); color:#FBF6E8; border-left:3px solid var(--red);}
+  .nav-icon{width:18px; text-align:center; font-size:14px;}
+  .nav-badge{
+    margin-left:auto; background:var(--red); color:#fff; border-radius:10px;
+    font-size:10px; padding:1px 6px; font-family:'IBM Plex Mono',monospace;
+  }
+  .sidebar-foot{margin-top:18px; padding-top:14px; border-top:1px solid rgba(237,230,214,0.18); font-size:11px; color:#93998A;}
+
+  /* MAIN */
+  #main{flex:1; padding:30px 40px 80px 40px; max-width:1180px;}
+  .page-head{margin-bottom:22px; display:flex; justify-content:space-between; align-items:flex-end; gap:20px; flex-wrap:wrap;}
+  .page-head p{color:var(--ink-soft); margin:2px 0 0 0; max-width:640px;}
+  .eyebrow{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--red); margin-bottom:4px;}
+
+  .card{
+    background:#fff; border:1px solid var(--line); border-radius:var(--radius);
+    padding:20px 22px; margin-bottom:18px; box-shadow:var(--shadow);
+  }
+  .card h3{font-size:16px; margin-bottom:10px;}
+  .card-flat{background:transparent; border:none; box-shadow:none; padding:0;}
+
+  .grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:16px;}
+  .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media(max-width:900px){.grid-3,.grid-2{grid-template-columns:1fr;}}
+
+  .stat{
+    background:#fff; border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px 18px;
+  }
+  .stat .num{font-family:'Source Serif 4',serif; font-size:30px; font-weight:700; line-height:1;}
+  .stat .label{color:var(--ink-soft); font-size:12.5px; margin-top:4px;}
+
+  button, .btn{
+    font-family:'IBM Plex Sans',sans-serif; font-size:13px; font-weight:600;
+    padding:8px 14px; border-radius:var(--radius); border:1px solid var(--ink);
+    background:var(--ink); color:#FBF6E8; cursor:pointer;
+  }
+  button:hover, .btn:hover{background:#33475A;}
+  button.secondary{background:#fff; color:var(--ink); border:1px solid var(--line);}
+  button.secondary:hover{background:var(--paper-deep);}
+  button.danger{background:var(--red); border-color:var(--red);}
+  button.danger:hover{background:#8C3025;}
+  button:disabled{opacity:0.5; cursor:not-allowed;}
+  button.small{padding:4px 9px; font-size:12px;}
+  input[type=text], input[type=number], textarea, select{
+    font-family:'IBM Plex Sans',sans-serif; font-size:13px;
+    border:1px solid var(--line); border-radius:var(--radius); padding:6px 8px;
+    background:#fffdf8; color:var(--ink); width:100%;
+  }
+  textarea{resize:vertical; min-height:44px;}
+  label{font-size:12px; color:var(--ink-soft); display:block; margin-bottom:3px;}
+
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th{
+    text-align:left; font-family:'IBM Plex Mono',monospace; font-weight:500;
+    font-size:11px; text-transform:none; color:var(--ink-soft);
+    border-bottom:1px solid var(--ink); padding:7px 8px; background:var(--paper-deep);
+  }
+  td{padding:7px 8px; border-bottom:1px solid var(--line-soft); vertical-align:top;}
+  tr:hover td{background:#FCFAF2;}
+
+  .tag{
+    display:inline-flex; align-items:center; gap:4px; padding:2px 8px;
+    border-radius:10px; font-size:11.5px; font-weight:600;
+  }
+  .tag.correcta{background:var(--green-soft); color:var(--green);}
+  .tag.incorrecta{background:var(--red-soft); color:var(--red);}
+  .tag.parcial{background:var(--amber-soft); color:var(--amber);}
+  .tag.no_contestada{background:#EDEAE0; color:var(--ink-faint);}
+
+  .conf-dot{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px;}
+  .conf-alta{background:var(--green);}
+  .conf-media{background:var(--amber);}
+  .conf-baja{background:var(--red);}
+
+  .dropzone{
+    border:1.5px dashed var(--line); border-radius:var(--radius); padding:26px;
+    text-align:center; color:var(--ink-soft); cursor:pointer; background:#FFFDF7;
+  }
+  .dropzone:hover{border-color:var(--ink-soft); background:var(--paper-deep);}
+  .dropzone strong{color:var(--ink); display:block; font-size:14px; margin-bottom:4px;}
+
+  .bar-wrap{background:var(--paper-deep); border-radius:6px; height:8px; overflow:hidden; margin-top:4px;}
+  .bar-fill{height:100%; border-radius:6px;}
+
+  .pill-row{display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;}
+  .pill{background:var(--paper-deep); border:1px solid var(--line); border-radius:12px; padding:3px 10px; font-size:12px;}
+
+  .empty{padding:36px 20px; text-align:center; color:var(--ink-faint); border:1px dashed var(--line); border-radius:var(--radius); background:#fff;}
+  .empty strong{display:block; color:var(--ink-soft); margin-bottom:4px; font-size:14px;}
+
+  .agent-log{font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--ink-soft); background:var(--ink); color:#D9D2BE; border-radius:var(--radius); padding:12px 14px; max-height:220px; overflow-y:auto;}
+  .agent-log .step{margin-bottom:3px;}
+  .agent-log .step.ok:before{content:"✓ "; color:#7BBF9B;}
+  .agent-log .step.run:before{content:"… "; color:#E8C97A;}
+  .agent-log .step.err:before{content:"✗ "; color:#E58B7E;}
+
+  .qcard{border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; margin-bottom:12px; background:#fff;}
+  .qcard-head{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px;}
+  .qcard-head .qnum{font-family:'Source Serif 4',serif; font-weight:700; font-size:15px;}
+  .review-flag{background:var(--red-soft); color:var(--red); border:1px solid #E4BEB8; border-radius:var(--radius); padding:8px 10px; font-size:12.5px; margin-top:8px;}
+  .divider{height:1px; background:var(--line); margin:20px 0;}
+
+  .close-x{cursor:pointer; color:var(--ink-faint); font-size:18px; line-height:1;}
+  .modal-bg{position:fixed; inset:0; background:rgba(32,48,63,0.45); display:flex; align-items:center; justify-content:center; z-index:50; padding:20px;}
+  .modal{background:#fff; border-radius:var(--radius); max-width:640px; width:100%; max-height:86vh; overflow-y:auto; padding:22px 24px;}
+
+  .toast-wrap{position:fixed; bottom:18px; right:18px; z-index:80; display:flex; flex-direction:column; gap:8px;}
+  .toast{background:var(--ink); color:#FBF6E8; padding:10px 16px; border-radius:var(--radius); font-size:13px; box-shadow:0 4px 14px rgba(0,0,0,0.25);}
+</style>
+</head>
+<body>
+<div id="shell">
+  <div id="sidebar">
+    <div class="brand">Cuaderno<small>Agente de Evaluación Formativa</small></div>
+    <div id="nav"></div>
+    <div class="sidebar-foot">Los datos se guardan en este navegador.<br>Modelo de visión: claude-sonnet-4-6.</div>
+  </div>
+  <div id="main"></div>
+</div>
+<div class="toast-wrap" id="toasts"></div>
+
+<script>
+/* ============================================================
+   ESTADO
+   ============================================================ */
+const NAV = [
+  {id:'inicio', icon:'🏠', label:'Inicio'},
+  {id:'oficial', icon:'📘', label:'Examen oficial'},
+  {id:'estudiantes', icon:'📄', label:'Exámenes de estudiantes'},
+  {id:'evaluaciones', icon:'🤖', label:'Evaluaciones'},
+  {id:'resultados', icon:'📊', label:'Resultados'},
+  {id:'grupal', icon:'👥', label:'Análisis grupal'},
+  {id:'planes', icon:'📚', label:'Planes de estudio'},
+  {id:'config', icon:'⚙️', label:'Configuración'},
+];
+
+let state = {
+  section: 'inicio',
+  officialExam: null,      // {titulo, preguntas:[...]}
+  students: [],            // array of student objects
+  confThresholds: {alta:90, media:70},
+};
+
+function newId(prefix){ return prefix + '_' + Math.random().toString(36).slice(2,10); }
+
+/* ---------- fuera de claude.ai (p. ej. Vercel) no existe window.storage: usar localStorage ---------- */
+if(!window.storage){
+  window.storage = {
+    async get(key){ const v = localStorage.getItem('cuaderno-'+key); return v===null ? null : {key, value:v}; },
+    async set(key, value){ localStorage.setItem('cuaderno-'+key, value); return {key, value}; },
+  };
+}
+
+/* ---------- persistence (no images, to stay under storage limits) ---------- */
+function stripImages(obj){
+  const copy = JSON.parse(JSON.stringify(obj, (k,v)=> (k==='images'||k==='pageImages') ? undefined : v));
+  return copy;
+}
+async function persist(){
+  try{
+    await window.storage.set('official-exam', JSON.stringify(state.officialExam||null), false);
+    const lightStudents = state.students.map(s=>stripImages(s));
+    await window.storage.set('students', JSON.stringify(lightStudents), false);
+  }catch(e){ console.warn('No se pudo guardar', e); }
+}
+async function loadPersisted(){
+  try{
+    const ex = await window.storage.get('official-exam', false);
+    if(ex && ex.value){ const parsed = JSON.parse(ex.value); if(parsed) state.officialExam = parsed; }
+  }catch(e){}
+  try{
+    const st = await window.storage.get('students', false);
+    if(st && st.value){ state.students = JSON.parse(st.value) || []; }
+  }catch(e){}
+}
+
+/* ---------- toast ---------- */
+function toast(msg){
+  const wrap = document.getElementById('toasts');
+  const t = document.createElement('div');
+  t.className='toast'; t.textContent=msg;
+  wrap.appendChild(t);
+  setTimeout(()=>t.remove(), 3600);
+}
+
+/* ============================================================
+   PDF -> IMÁGENES
+   ============================================================ */
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+async function pdfFileToImages(file, scale){
+  scale = scale || 1.6;
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+  const images = [];
+  for(let i=1;i<=pdf.numPages;i++){
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({scale});
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width; canvas.height = viewport.height;
+    const ctx = canvas.getContext('2d');
+    await page.render({canvasContext:ctx, viewport}).promise;
+    images.push(canvas.toDataURL('image/png'));
+  }
+  return images;
+}
+
+function dataUrlToBase64(durl){ return durl.split(',')[1]; }
+
+/* ============================================================
+   AGENTE — LLAMADAS A LA API (visión)
+   ============================================================ */
+async function callClaudeVision(images, promptText, maxTokens){
+  const content = images.map(img => ({
+    type:'image',
+    source:{type:'base64', media_type:'image/png', data: dataUrlToBase64(img)}
+  }));
+  content.push({type:'text', text: promptText});
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      model:'claude-sonnet-4-6',
+      max_tokens: maxTokens || 4096,
+      messages:[{role:'user', content}]
+    })
+  });
+  if(!res.ok){ throw new Error('Fallo de la API: '+res.status); }
+  const data = await res.json();
+  const textBlocks = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+  return textBlocks;
+}
+
+function parseJsonLoose(text){
+  let clean = text.trim();
+  clean = clean.replace(/^```json/i,'').replace(/^```/,'').replace(/```$/,'').trim();
+  const first = clean.indexOf('{'); const last = clean.lastIndexOf('}');
+  if(first>=0 && last>first){ clean = clean.slice(first,last+1); }
+  return JSON.parse(clean);
+}
+
+const PROMPT_EXTRACT = `Eres un agente de IA especializado en analizar exámenes escaneados de matemáticas para un profesor.
+Se te muestran las páginas de un EXAMEN OFICIAL (el documento fuente de verdad, con la clave de respuestas escrita a mano por el profesor).
+
+Cada ejercicio termina con una línea que dice exactamente "Respuesta:" seguida de la respuesta oficial correcta escrita por el profesor a mano.
+
+Tu tarea es extraer la estructura completa del examen. Responde ÚNICAMENTE con un JSON válido, sin texto adicional, sin explicación, sin marcado markdown, con este formato exacto:
+
+{
+  "titulo": "título o nombre del examen si aparece, o una descripción breve",
+  "preguntas": [
+    {
+      "numero": 1,
+      "tema": "tema o competencia evaluada, breve",
+      "enunciado": "resumen breve del enunciado del ejercicio (máx 25 palabras)",
+      "respuesta_oficial": "el contenido exacto escrito después de 'Respuesta:' en este ejercicio",
+      "procedimiento_esperado": "descripción breve del procedimiento esperado si es visible en el examen oficial, o null si no hay procedimiento escrito",
+      "valor": 1
+    }
+  ]
+}
+
+Reglas:
+- Numera las preguntas en el orden en que aparecen.
+- Si el examen no indica el valor en puntos de una pregunta, usa 1.
+- Si una línea "Respuesta:" está vacía o ilegible, escribe "NO LEGIBLE" en respuesta_oficial.
+- No inventes preguntas que no existan en el documento.`;
+
+function buildGradePrompt(officialExam){
+  const rubricLines = officialExam.preguntas.map(p =>
+    `- Pregunta ${p.numero} (${p.tema}): respuesta oficial = "${p.respuesta_oficial}", valor = ${p.valor} punto(s)`+
+    (p.criterio ? `, criterio de calificación: ${p.criterio}` : '')+
+    (p.procedimiento_esperado ? `, procedimiento esperado: ${p.procedimiento_esperado}` : '')
+  ).join('\n');
+
+  return `Eres un agente de IA de evaluación formativa. Vas a calificar el examen manuscrito de UN estudiante, comparándolo contra el examen oficial del profesor.
+
+EXAMEN OFICIAL Y CLAVE DE RESPUESTAS (fuente de verdad, no la sustituyas ni la inventes):
+${rubricLines}
+
+Se te muestran las páginas escaneadas del examen CONTESTADO por el estudiante, escrito a mano (lápiz o pluma). Cada ejercicio contiene el procedimiento del estudiante y termina con una línea "Respuesta:" seguida de su respuesta final.
+
+Debes usar análisis visual (no solo OCR de texto) para interpretar escritura manuscrita, operaciones, fracciones, raíces, diagramas de Venn, planos cartesianos, tablas y gráficas dibujadas a mano.
+
+Para cada pregunta compara tres elementos: (1) la respuesta oficial del profesor, (2) la respuesta final del estudiante escrita después de "Respuesta:", y (3) el procedimiento que el estudiante realizó. Usa el procedimiento para decidir si hay comprensión aunque exista un error de cálculo, error conceptual, o si la respuesta final no coincide con el procedimiento.
+
+Si no puedes interpretar con claridad la respuesta o el procedimiento de una pregunta, NO la inventes: marca "requiere_revision": true y baja la "confianza".
+
+También intenta identificar del encabezado del examen: nombre del estudiante, grupo, matrícula (si aparece) y fecha. Si no puedes identificar alguno con seguridad, usa null.
+
+Responde ÚNICAMENTE con un JSON válido, sin texto adicional ni markdown, con este formato exacto:
+
+{
+  "datos_estudiante": {"nombre": "string o null", "grupo": "string o null", "matricula": "string o null", "fecha": "string o null"},
+  "resultados": [
+    {
+      "numero": 1,
+      "respuesta_estudiante": "lo que el estudiante escribió después de 'Respuesta:', o 'NO CONTESTADA' si está en blanco",
+      "procedimiento_resumen": "resumen breve del procedimiento que realizó el estudiante",
+      "evaluacion": "correcta | incorrecta | parcial | no_contestada",
+      "puntos_obtenidos": 0,
+      "justificacion": "explicación breve y clara de la calificación, en tono constructivo, dirigida al profesor",
+      "tipo_error": "error_procedimiento | error_calculo | error_conceptual | confusion_signos | confusion_conceptos | falta_procedimiento | respuesta_incompleta | respuesta_ilegible | sin_contestar | ninguno",
+      "confianza": 90,
+      "requiere_revision": false
+    }
+  ],
+  "retroalimentacion": {
+    "fortalezas": ["frase breve", "frase breve"],
+    "areas_oportunidad": ["frase breve"],
+    "errores_principales": ["frase breve, en tono constructivo, sin lenguaje desmotivador"],
+    "recomendaciones": "2-4 frases dirigidas directamente al estudiante, en tono motivador, indicando exactamente qué debe estudiar"
+  },
+  "plan_estudio": {
+    "tema_prioritario": "el tema con más dificultad",
+    "actividades": ["actividad concreta 1", "actividad concreta 2", "actividad concreta 3"]
+  }
+}
+
+Reglas de calificación:
+- puntos_obtenidos nunca debe exceder el valor de la pregunta.
+- No otorgues puntos por una respuesta final correcta que claramente no se deriva del procedimiento mostrado (posible copia), señálalo en justificacion y en tipo_error.
+- Sé estricto pero justo, y siempre justifica tu decisión.`;
+}
+
+/* ============================================================
+   CÁLCULOS DERIVADOS
+   ============================================================ */
+function computeStudentScore(student){
+  if(!state.officialExam || !student.resultados) return {calif:0, sobre:0, dominio:{}};
+  const valorPorNum = {};
+  const temaPorNum = {};
+  state.officialExam.preguntas.forEach(p=>{ valorPorNum[p.numero]=p.valor; temaPorNum[p.numero]=p.tema; });
+
+  let totalPuntos=0, totalValor=0;
+  const temaAcum = {}; // tema -> {obt, pos}
+  student.resultados.forEach(r=>{
+    const valor = valorPorNum[r.numero] != null ? valorPorNum[r.numero] : 1;
+    const tema = temaPorNum[r.numero] || 'General';
+    totalPuntos += Number(r.puntos_obtenidos)||0;
+    totalValor += Number(valor)||0;
+    if(!temaAcum[tema]) temaAcum[tema] = {obt:0,pos:0};
+    temaAcum[tema].obt += Number(r.puntos_obtenidos)||0;
+    temaAcum[tema].pos += Number(valor)||0;
+  });
+  const dominio = {};
+  Object.keys(temaAcum).forEach(t=>{
+    dominio[t] = temaAcum[t].pos>0 ? Math.round((temaAcum[t].obt/temaAcum[t].pos)*100) : 0;
+  });
+  const calif10 = totalValor>0 ? (totalPuntos/totalValor)*10 : 0;
+  return {calif: Math.round(calif10*10)/10, sobre:10, dominio, totalPuntos, totalValor};
+}
+
+function confLevel(c){
+  if(c>=state.confThresholds.alta) return 'alta';
+  if(c>=state.confThresholds.media) return 'media';
+  return 'baja';
+}
+function evalTagLabel(e){
+  return {correcta:'Correcta', incorrecta:'Incorrecta', parcial:'Parcial', no_contestada:'No contestada'}[e] || e;
+}
+function domColor(pct){
+  if(pct>=75) return 'green';
+  if(pct>=50) return 'amber';
+  return 'red';
+}
+function domIcon(pct){ return pct>=75?'🟢':(pct>=50?'🟡':'🔴'); }
+
+function groupAnalysis(){
+  const temaAcum = {}; // tema -> {sumPct:[], countLow:0, countTotal:0}
+  const errorTally = {};
+  let sumCalif=0, n=0;
+  state.students.forEach(s=>{
+    if(!s.resultados) return;
+    const sc = computeStudentScore(s);
+    sumCalif += sc.calif; n++;
+    Object.keys(sc.dominio).forEach(t=>{
+      if(!temaAcum[t]) temaAcum[t]={vals:[], low:0, total:0};
+      temaAcum[t].vals.push(sc.dominio[t]);
+      temaAcum[t].total++;
+      if(sc.dominio[t] < 70) temaAcum[t].low++;
+    });
+    s.resultados.forEach(r=>{
+      if(r.tipo_error && r.tipo_error!=='ninguno'){
+        errorTally[r.tipo_error] = (errorTally[r.tipo_error]||0)+1;
+      }
+    });
+  });
+  const temas = Object.keys(temaAcum).map(t=>{
+    const avg = temaAcum[t].vals.reduce((a,b)=>a+b,0)/temaAcum[t].vals.length;
+    return {tema:t, avg:Math.round(avg), low:temaAcum[t].low, total:temaAcum[t].total};
+  }).sort((a,b)=>a.avg-b.avg);
+  const errores = Object.entries(errorTally).sort((a,b)=>b[1]-a[1]);
+  return {temas, errores, promedioGrupo: n? Math.round((sumCalif/n)*10)/10 : 0, n};
+}
+
+/* ============================================================
+   RENDER — NAV
+   ============================================================ */
+function renderNav(){
+  const nav = document.getElementById('nav');
+  nav.innerHTML='';
+  NAV.forEach(item=>{
+    const div = document.createElement('div');
+    div.className='nav-item'+(state.section===item.id?' active':'');
+    let badge='';
+    if(item.id==='estudiantes' && state.students.length) badge = `<span class="nav-badge">${state.students.length}</span>`;
+    if(item.id==='resultados'){
+      const pend = countPendingReview();
+      if(pend) badge = `<span class="nav-badge">${pend}</span>`;
+    }
+    div.innerHTML = `<span class="nav-icon">${item.icon}</span><span>${item.label}</span>${badge}`;
+    div.onclick = ()=>{ state.section=item.id; renderAll(); };
+    nav.appendChild(div);
+  });
+}
+function countPendingReview(){
+  let c=0;
+  state.students.forEach(s=>{ (s.resultados||[]).forEach(r=>{ if(r.requiere_revision && !r._confirmado) c++; }); });
+  return c;
+}
+
+/* ============================================================
+   RENDER — SECCIONES
+   ============================================================ */
+function renderAll(){
+  renderNav();
+  const main = document.getElementById('main');
+  main.innerHTML='';
+  const fns = {
+    inicio: renderInicio, oficial: renderOficial, estudiantes: renderEstudiantes,
+    evaluaciones: renderEvaluaciones, resultados: renderResultados,
+    grupal: renderGrupal, planes: renderPlanes, config: renderConfig
+  };
+  (fns[state.section]||renderInicio)(main);
+}
+
+/* ---------------- INICIO ---------------- */
+function renderInicio(main){
+  const graded = state.students.filter(s=>s.resultados);
+  const pend = countPendingReview();
+  const ga = graded.length ? groupAnalysis() : null;
+
+  main.innerHTML = `
+    <div class="page-head">
+      <div><div class="eyebrow">PANEL DEL PROFESOR</div>
+      <h1>Buen día, Patricia</h1>
+      <p>Este agente observa, analiza y califica exámenes manuscritos — pero la decisión final siempre es tuya.</p></div>
+    </div>
+    <div class="grid-3">
+      <div class="stat"><div class="num">${state.officialExam? state.officialExam.preguntas.length : '—'}</div><div class="label">Preguntas configuradas en el examen oficial</div></div>
+      <div class="stat"><div class="num">${state.students.length}</div><div class="label">Exámenes de estudiantes cargados</div></div>
+      <div class="stat"><div class="num">${graded.length}</div><div class="label">Exámenes ya calificados por el agente</div></div>
+    </div>
+    <div class="grid-3">
+      <div class="stat"><div class="num" style="color:${pend? 'var(--red)':'var(--green)'}">${pend}</div><div class="label">Respuestas en bandeja de revisión</div></div>
+      <div class="stat"><div class="num">${ga? ga.promedioGrupo : '—'}</div><div class="label">Promedio del grupo (sobre 10)</div></div>
+      <div class="stat"><div class="num" style="font-size:20px; line-height:1.3;">${ga && ga.temas.length? ga.temas[0].tema : '—'}</div><div class="label">Tema con mayor dificultad grupal</div></div>
+    </div>
+
+    <div class="card">
+      <h3>Ciclo del agente</h3>
+      <p style="color:var(--ink-soft); margin-top:0;">Observar → Analizar → Decidir → Ejecutar → Verificar → Reportar. Cada examen pasa por este ciclo; tú confirmas o modificas el resultado final.</p>
+      <div class="pill-row">
+        <span class="pill">1. Cargar examen oficial</span>
+        <span class="pill">2. Configurar rúbrica</span>
+        <span class="pill">3. Cargar exámenes de estudiantes</span>
+        <span class="pill">4. Ejecutar evaluación</span>
+        <span class="pill">5. Revisar y confirmar</span>
+        <span class="pill">6. Consultar reportes y análisis grupal</span>
+      </div>
+    </div>
+
+    ${!state.officialExam ? `<div class="empty"><strong>Aún no hay examen oficial cargado.</strong>Empieza en "Examen oficial" para subir el PDF con la clave de respuestas.<br><br><button onclick="state.section='oficial'; renderAll();">Ir a Examen oficial</button></div>` : ''}
+  `;
+}
+
+/* ---------------- EXAMEN OFICIAL ---------------- */
+function renderOficial(main){
+  main.innerHTML = `
+    <div class="page-head">
+      <div><div class="eyebrow">FUENTE DE VERDAD</div>
+      <h1>Examen oficial y clave de respuestas</h1>
+      <p>Sube el PDF del examen oficial. El agente detectará las preguntas, temas, valores y la respuesta escrita después de "Respuesta:". Puedes editar todo antes de calificar.</p></div>
+    </div>
+
+    <div class="card">
+      <div class="dropzone" id="dz-oficial">
+        <strong>+ Cargar examen oficial PDF</strong>
+        Arrastra el archivo aquí o haz clic para seleccionarlo
+      </div>
+      <input type="file" id="file-oficial" accept="application/pdf" style="display:none">
+      <div id="oficial-status" style="margin-top:10px;"></div>
+    </div>
+
+    <div id="oficial-table-wrap"></div>
+  `;
+  document.getElementById('dz-oficial').onclick = ()=> document.getElementById('file-oficial').click();
+  document.getElementById('file-oficial').onchange = onOficialFile;
+  renderOficialTable();
+}
+
+async function onOficialFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById('oficial-status');
+  statusEl.innerHTML = agentLogHtml([['Observando el PDF del examen oficial…','run']]);
+  try{
+    const images = await pdfFileToImages(file);
+    statusEl.innerHTML = agentLogHtml([
+      ['Observando el PDF del examen oficial','ok'],
+      ['Analizando con visión de IA (preguntas, temas, respuestas)…','run']
+    ]);
+    const raw = await callClaudeVision(images, PROMPT_EXTRACT, 4096);
+    const parsed = parseJsonLoose(raw);
+    parsed.preguntas.forEach(p=>{ if(p.criterio===undefined) p.criterio=''; });
+    state.officialExam = parsed;
+    await persist();
+    statusEl.innerHTML = agentLogHtml([
+      ['Observando el PDF del examen oficial','ok'],
+      ['Analizando con visión de IA','ok'],
+      [`Estructura detectada: ${parsed.preguntas.length} preguntas. Revisa y corrige la tabla si es necesario.`,'ok']
+    ]);
+    toast('Examen oficial procesado');
+    renderOficialTable();
+  }catch(err){
+    console.error(err);
+    statusEl.innerHTML = agentLogHtml([['Error al analizar el PDF: '+err.message, 'err']]);
+  }
+}
+
+function agentLogHtml(steps){
+  return `<div class="agent-log">${steps.map(s=>`<div class="step ${s[1]}">${s[0]}</div>`).join('')}</div>`;
+}
+
+function renderOficialTable(){
+  const wrap = document.getElementById('oficial-table-wrap');
+  if(!state.officialExam){ wrap.innerHTML=''; return; }
+  const ex = state.officialExam;
+  wrap.innerHTML = `
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h3 style="margin:0;">${ex.titulo || 'Examen oficial'}</h3>
+        <div style="display:flex; gap:8px;">
+          <button class="secondary small" onclick="addQuestion()">+ Agregar pregunta</button>
+          <button class="secondary small" onclick="renderOficialTable()">Cancelar edición</button>
+        </div>
+      </div>
+      <table>
+        <thead><tr>
+          <th style="width:36px;">#</th><th>Tema</th><th>Respuesta correcta</th><th style="width:70px;">Valor</th>
+          <th>Criterio de calificación</th><th style="width:44px;"></th>
+        </tr></thead>
+        <tbody id="oficial-tbody"></tbody>
+      </table>
+    </div>
+  `;
+  const tbody = document.getElementById('oficial-tbody');
+  ex.preguntas.forEach((p,idx)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${p.numero}</td>
+      <td><input type="text" value="${escAttr(p.tema)}" onchange="updateQ(${idx},'tema',this.value)"></td>
+      <td><input type="text" value="${escAttr(p.respuesta_oficial)}" onchange="updateQ(${idx},'respuesta_oficial',this.value)"></td>
+      <td><input type="number" min="0" step="0.5" value="${p.valor}" onchange="updateQ(${idx},'valor',parseFloat(this.value)||0)"></td>
+      <td><input type="text" placeholder="ej. Procedimiento 1pt, resultado 1pt" value="${escAttr(p.criterio||'')}" onchange="updateQ(${idx},'criterio',this.value)"></td>
+      <td><span class="close-x" onclick="removeQuestion(${idx})">✕</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+function escAttr(s){ return (s==null?'':String(s)).replace(/"/g,'&quot;'); }
+function updateQ(idx, field, val){
+  state.officialExam.preguntas[idx][field]=val;
+  persist();
+}
+function addQuestion(){
+  const ex = state.officialExam;
+  const nextNum = ex.preguntas.length ? Math.max(...ex.preguntas.map(p=>p.numero))+1 : 1;
+  ex.preguntas.push({numero:nextNum, tema:'', enunciado:'', respuesta_oficial:'', procedimiento_esperado:null, valor:1, criterio:''});
+  persist(); renderOficialTable();
+}
+function removeQuestion(idx){
+  state.officialExam.preguntas.splice(idx,1);
+  persist(); renderOficialTable();
+}
+
+/* ---------------- EXÁMENES DE ESTUDIANTES ---------------- */
+function renderEstudiantes(main){
+  main.innerHTML = `
+    <div class="page-head">
+      <div><div class="eyebrow">DOCUMENTOS DE ENTRADA</div>
+      <h1>Exámenes de estudiantes</h1>
+      <p>Sube uno o varios PDF (escaneados o fotografías convertidas a PDF). El agente detectará nombre, grupo, matrícula y fecha; confirma si algún dato queda incierto.</p></div>
+    </div>
+    <div class="card">
+      <div class="dropzone" id="dz-est">
+        <strong>+ Cargar exámenes de estudiantes (PDF, selección múltiple)</strong>
+        Arrastra los archivos aquí o haz clic para seleccionarlos
+      </div>
+      <input type="file" id="file-est" accept="application/pdf" multiple style="display:none">
+    </div>
+    <div class="card">
+      <h3>Estudiantes cargados</h3>
+      <table>
+        <thead><tr><th>Archivo</th><th>Nombre</th><th>Grupo</th><th>Matrícula</th><th>Páginas</th><th>Estado</th><th></th></tr></thead>
+        <tbody id="est-tbody"></tbody>
+      </table>
+      ${!state.students.length ? '<div class="empty" style="margin-top:10px;">Aún no has cargado exámenes de estudiantes.</div>' : ''}
+    </div>
+  `;
+  document.getElementById('dz-est').onclick = ()=> document.getElementById('file-est').click();
+  document.getElementById('file-est').onchange = onStudentFiles;
+  renderStudentsTable();
+}
+
+async function onStudentFiles(e){
+  const files = Array.from(e.target.files||[]);
+  for(const file of files){
+    const id = newId('st');
+    const student = {id, filename:file.name, nombre:null, grupo:null, matricula:null, fecha:null,
+      images:null, resultados:null, retroalimentacion:null, plan_estudio:null, estado:'cargado', confirmadoDatos:false};
+    try{
+      student.images = await pdfFileToImages(file);
+    }catch(err){ toast('No se pudo leer '+file.name); continue; }
+    state.students.push(student);
+  }
+  await persist();
+  renderStudentsTable();
+  toast(files.length+' examen(es) cargado(s)');
+}
+
+function renderStudentsTable(){
+  const tbody = document.getElementById('est-tbody');
+  if(!tbody) return;
+  tbody.innerHTML='';
+  state.students.forEach(s=>{
+    const tr = document.createElement('tr');
+    const nombreCell = s.nombre ? s.nombre : `<em style="color:var(--ink-faint)">sin detectar${s.resultados?'':' (aún no procesado)'}</em>`;
+    tr.innerHTML = `
+      <td>${s.filename}</td>
+      <td>${nombreCell}</td>
+      <td>${s.grupo||'—'}</td>
+      <td>${s.matricula||'—'}</td>
+      <td>${s.images? s.images.length : '—'}</td>
+      <td>${estadoTag(s)}</td>
+      <td><span class="close-x" onclick="removeStudent('${s.id}')">✕</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+function estadoTag(s){
+  if(s.resultados) return s.revisadoProfesor ? '<span class="tag correcta">Revisado</span>' : '<span class="tag parcial">Pendiente de revisión</span>';
+  if(s.images) return '<span class="tag no_contestada">Listo para calificar</span>';
+  return '<span class="tag no_contestada">Cargado</span>';
+}
+function removeStudent(id){
+  state.students = state.students.filter(s=>s.id!==id);
+  persist(); renderStudentsTable(); renderNav();
+}
+
+/* ---------------- EVALUACIONES (motor del agente) ---------------- */
+function renderEvaluaciones(main){
+  const ready = !!state.officialExam && state.officialExam.preguntas.length>0;
+  main.innerHTML = `
+    <div class="page-head">
+      <div><div class="eyebrow">MOTOR DEL AGENTE</div>
+      <h1>Evaluaciones</h1>
+      <p>El agente compara cada examen contestado contra la clave oficial, aplica tu rúbrica y genera calificación, diagnóstico y retroalimentación.</p></div>
+      <button ${ready? '' : 'disabled'} onclick="runAllPending()">▶ Calificar exámenes pendientes</button>
+    </div>
+    ${!ready ? '<div class="empty"><strong>Falta configurar el examen oficial.</strong>Ve a "Examen oficial" y carga la clave de respuestas antes de calificar.</div>' : ''}
+    <div class="card">
+      <h3>Cola de evaluación</h3>
+      <table>
+        <thead><tr><th>Archivo</th><th>Estado</th><th></th></tr></thead>
+        <tbody id="eval-tbody"></tbody>
+      </table>
+      ${!state.students.length ? '<div class="empty" style="margin-top:10px;">No hay exámenes de estudiantes cargados todavía.</div>' : ''}
+    </div>
+    <div id="eval-log"></div>
+  `;
+  renderEvalTable();
+}
+function renderEvalTable(){
+  const tbody = document.getElementById('eval-tbody');
+  if(!tbody) return;
+  tbody.innerHTML='';
+  state.students.forEach(s=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${s.filename}${s.nombre? ' — '+s.nombre : ''}</td>
+      <td>${estadoTag(s)}</td>
+      <td><button class="secondary small" ${!state.officialExam?'disabled':''} onclick="runOne('${s.id}')">${s.resultados? 'Recalificar':'Calificar'}</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function runAllPending(){
+  const pending = state.students.filter(s=>!s.resultados);
+  if(!pending.length){ toast('No hay exámenes pendientes'); return; }
+  for(const s of pending){ await runOne(s.id, true); }
+  toast('Evaluación grupal completada');
+}
+
+async function runOne(id, silent){
+  const s = state.students.find(x=>x.id===id);
+  if(!s) return;
+  if(!s.images){ toast('Este examen no tiene páginas cargadas'); return; }
+  const log = document.getElementById('eval-log');
+  const steps = [
+    ['Observar: leyendo páginas del examen del estudiante','run'],
+  ];
+  if(log) log.innerHTML = `<div class="card"><h3>${s.filename}</h3>${agentLogHtml(steps)}</div>`;
+
+  try{
+    const prompt = buildGradePrompt(state.officialExam);
+    steps[0]=[steps[0][0],'ok'];
+    steps.push(['Analizar: interpretando escritura manuscrita y procedimientos con visión de IA…','run']);
+    if(log) log.innerHTML = `<div class="card"><h3>${s.filename}</h3>${agentLogHtml(steps)}</div>`;
+
+    const raw = await callClaudeVision(s.images, prompt, 4096);
+    const parsed = parseJsonLoose(raw);
+
+    steps[steps.length-1]=[steps[steps.length-1][0],'ok'];
+    steps.push(['Decidir: comparando contra la clave oficial y aplicando la rúbrica','ok']);
+    steps.push(['Ejecutar: calculando puntos por pregunta','ok']);
+
+    s.nombre = parsed.datos_estudiante && parsed.datos_estudiante.nombre;
+    s.grupo = parsed.datos_estudiante && parsed.datos_estudiante.grupo;
+    s.matricula = parsed.datos_estudiante && parsed.datos_estudiante.matricula;
+    s.fecha = parsed.datos_estudiante && parsed.datos_estudiante.fecha;
+    s.resultados = parsed.resultados.map(r=>({...r, _confirmado:false}));
+    s.retroalimentacion = parsed.retroalimentacion;
+    s.plan_estudio = parsed.plan_estudio;
+    s.revisadoProfesor = false;
+
+    const lowConf = s.resultados.filter(r=>r.requiere_revision).length;
+    steps.push(['Verificar: nivel de confianza por pregunta calculado'+(lowConf? ` (${lowConf} requieren tu revisión)`:''),'ok']);
+    steps.push(['Reportar: diagnóstico, retroalimentación y plan de estudio generados','ok']);
+
+    if(log) log.innerHTML = `<div class="card"><h3>${s.filename}</h3>${agentLogHtml(steps)}</div>`;
+    await persist();
+    renderEvalTable(); renderNav();
+    if(!silent) toast('Examen de '+(s.nombre||s.filename)+' calificado');
+  }catch(err){
+    console.error(err);
+    steps.push(['Error: '+err.message,'err']);
+    if(log) log.innerHTML = `<div class="card"><h3>${s.filename}</h3>${agentLogHtml(steps)}</div>`;
+  }
+}
+
+/* ---------------- RESULTADOS ---------------- */
+let selectedStudentId = null;
+function renderResultados(main){
+  const graded = state.students.filter(s=>s.resultados);
+  main.innerHTML = `
+    <div class="page-head">
+      <div><div class="eyebrow">VISTA DEL PROFESOR</div>
+      <h1>Resultados</h1>
+      <p>Consulta, confirma o modifica la calificación de cada estudiante. El agente propone; tú decides.</p></div>
+      <div style="display:flex; gap:8px;">
+        <select id="sort-select" onchange="renderResultadosTable()">
+          <option value="nombre">Ordenar por nombre</option>
+          <option value="calif">Ordenar por calificación</option>
+          <option value="tema">Ordenar por tema con mayor dificultad</option>
+          <option value="pendiente">Exámenes pendientes de revisión</option>
+        </select>
+        <button class="secondary" onclick="exportGroupCSV()">Exportar CSV</button>
+      </div>
+    </div>
+    <div class="card"><table>
+      <thead><tr><th>Estudiante</th><th>Calificación</th><th>Fortalezas</th><th>Tema a reforzar</th><th>Estado</th><th></th></tr></thead>
+      <tbody id="res-tbody"></tbody>
+    </table>
+    ${!graded.length? '<div class="empty" style="margin-top:10px;">Aún no hay exámenes calificados. Ve a "Evaluaciones" para ejecutar el agente.</div>':''}
+    </div>
+    <div id="student-detail"></div>
+  `;
+  renderResultadosTable();
+  if(selectedStudentId){ openStudentDetail(selectedStudentId); }
+}
+
+function renderResultadosTable(){
+  const tbody = document.getElementById('res-tbody');
+  if(!tbody) return;
+  let graded = state.students.filter(s=>s.resultados).map(s=>({s, sc: computeStudentScore(s)}));
+  const sortBy = document.getElementById('sort-select') ? document.getElementById('sort-select').value : 'nombre';
+  if(sortBy==='nombre') graded.sort((a,b)=> (a.s.nombre||'').localeCompare(b.s.nombre||''));
+  if(sortBy==='calif') graded.sort((a,b)=> b.sc.calif - a.sc.calif);
+  if(sortBy==='tema') graded.sort((a,b)=>{
+    const ta = Object.values(a.sc.dominio).length? Math.min(...Object.values(a.sc.dominio)) : 100;
+    const tb = Object.values(b.sc.dominio).length? Math.min(...Object.values(b.sc.dominio)) : 100;
+    return ta-tb;
+  });
+  if(sortBy==='pendiente') graded = graded.filter(x=> !x.s.revisadoProfesor );
+
+  tbody.innerHTML='';
+  graded.forEach(({s,sc})=>{
+    const fortalezas = (s.retroalimentacion && s.retroalimentacion.fortalezas && s.retroalimentacion.fortalezas[0]) || '—';
+    const temaDebil = Object.entries(sc.dominio).sort((a,b)=>a[1]-b[1])[0];
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${s.nombre||s.filename}</td>
+      <td><strong>${sc.calif}</strong> / 10</td>
+      <td>${fortalezas}</td>
+      <td>${temaDebil? temaDebil[0]+' '+domIcon(temaDebil[1]) : '—'}</td>
+      <td>${s.revisadoProfesor? '<span class="tag correcta">Revisado</span>':'<span class="tag parcial">Pendiente</span>'}</td>
+      <td><button class="secondary small" onclick="openStudentDetail('${s.id}')">Ver reporte</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function openStudentDetail(id){
+  selectedStudentId = id;
+  const s = state.students.find(x=>x.id===id);
+  const wrap = document.getElementById('student-detail');
+  if(!s || !wrap) return;
+  const sc = computeStudentScore(s);
+
+  const questionsHtml = s.resultados.map((r,idx)=>{
+    const cl = confLevel(r.confianza);
+    return `
+      <div class="qcard">
+        <div class="qcard-head">
+          <span class="qnum">Pregunta ${r.numero}</span>
+          <span class="tag ${r.evaluacion}">${evalTagLabel(r.evaluacion)}</span>
+        </div>
+        <div class="grid-2">
+          <div><label>Respuesta del estudiante</label><div>${r.respuesta_estudiante||'—'}</div></div>
+          <div><label>Procedimiento (resumen del agente)</label><div>${r.procedimiento_resumen||'—'}</div></div>
+        </div>
+        <div style="margin-top:8px;"><label>Justificación</label><div>${r.justificacion||'—'}</div></div>
+        <div style="display:flex; gap:16px; align-items:center; margin-top:10px; flex-wrap:wrap;">
+          <div><label>Puntos</label><input type="number" style="width:80px;" min="0" step="0.5" value="${r.puntos_obtenidos}" onchange="editPoints('${s.id}',${idx},this.value)"></div>
+          <div><label>Evaluación</label>
+            <select onchange="editEval('${s.id}',${idx},this.value)">
+              ${['correcta','parcial','incorrecta','no_contestada'].map(v=>`<option value="${v}" ${v===r.evaluacion?'selected':''}>${evalTagLabel(v)}</option>`).join('')}
+            </select>
+          </div>
+          <div><span class="conf-dot conf-${cl}"></span>Confianza ${r.confianza}% (${cl})</div>
+          <button class="secondary small" onclick="confirmQuestion('${s.id}',${idx})">${r._confirmado? '✓ Confirmada':'✓ Confirmar calificación'}</button>
+        </div>
+        ${r.requiere_revision ? `<div class="review-flag">⚠️ Esta respuesta requiere revisión del profesor — la interpretación del agente tiene baja o media confianza.</div>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  const dominioHtml = Object.entries(sc.dominio).map(([tema,pct])=>`
+    <div style="margin-bottom:8px;">
+      <div style="display:flex; justify-content:space-between; font-size:12.5px;"><span>${tema}</span><span>${domIcon(pct)} ${pct}%</span></div>
+      <div class="bar-wrap"><div class="bar-fill" style="width:${pct}%; background:var(--${domColor(pct)});"></div></div>
+    </div>`).join('');
+
+  const fb = s.retroalimentacion || {};
+  const plan = s.plan_estudio || {};
+
+  wrap.innerHTML = `
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div>
+          <div class="eyebrow">REPORTE INDIVIDUAL</div>
+          <h2>${s.nombre || s.filename}</h2>
+          <p style="margin:2px 0 0 0; color:var(--ink-soft);">${s.grupo? 'Grupo '+s.grupo+' · ':''}${s.matricula? 'Matrícula '+s.matricula+' · ':''}${s.fecha||''}</p>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-family:'Source Serif 4',serif; font-size:34px; font-weight:700;">${sc.calif} <span style="font-size:16px; color:var(--ink-soft);">/ 10</span></div>
+          <button class="small" onclick="markReviewed('${s.id}')">${s.revisadoProfesor? '✓ Marcado como revisado':'Marcar examen como revisado'}</button>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="grid-2">
+        <div>
+          <h3>Resultados por pregunta</h3>
+          <div class="pill-row">${s.resultados.map(r=>`<span class="pill">P${r.numero} ${r.evaluacion==='correcta'?'✓':r.evaluacion==='incorrecta'?'✗':'~'} ${r.puntos_obtenidos}</span>`).join('')}</div>
+        </div>
+        <div>
+          <h3>Dominio por tema</h3>
+          ${dominioHtml || '<span style="color:var(--ink-faint);">Sin datos de tema</span>'}
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="grid-2">
+        <div class="card" style="margin:0;">
+          <h3>Retroalimentación</h3>
+          <p><strong>Fortalezas:</strong> ${(fb.fortalezas||[]).join('; ')||'—'}</p>
+          <p><strong>Áreas de oportunidad:</strong> ${(fb.areas_oportunidad||[]).join('; ')||'—'}</p>
+          <p><strong>Errores principales:</strong> ${(fb.errores_principales||[]).join('; ')||'—'}</p>
+          <p>${fb.recomendaciones||''}</p>
+        </div>
+        <div class="card" style="margin:0;">
+          <h3>Plan de estudio</h3>
+          <p><strong>Tema prioritario:</strong> ${plan.tema_prioritario||'—'}</p>
+          <ol>${(plan.actividades||[]).map(a=>`<li>${a}</li>`).join('')}</ol>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <h3>Detalle por pregunta</h3>
+      ${questionsHtml}
+      <div style="display:flex; gap:8px; margin-top:12px;">
+        <button class="secondary" onclick="exportStudentPDF('${s.id}')">Descargar reporte individual (PDF)</button>
+        <button class="secondary" onclick="closeStudentDetail()">Cerrar</button>
+      </div>
+    </div>
+  `;
+}
+function closeStudentDetail(){ selectedStudentId=null; renderResultados(document.getElementById('main')); }
+function editPoints(sid, idx, val){
+  const s = state.students.find(x=>x.id===sid);
+  s.resultados[idx].puntos_obtenidos = parseFloat(val)||0;
+  persist(); openStudentDetail(sid); renderResultadosTable();
+}
+function editEval(sid, idx, val){
+  const s = state.students.find(x=>x.id===sid);
+  s.resultados[idx].evaluacion = val;
+  persist(); openStudentDetail(sid); renderResultadosTable();
+}
+function confirmQuestion(sid, idx){
+  const s = state.students.find(x=>x.id===sid);
+  s.resultados[idx]._confirmado = true;
+  s.resultados[idx].requiere_revision = false;
+  persist(); openStudentDetail(sid); renderNav();
+}
+function markReviewed(sid){
+  const s = state.students.find(x=>x.id===sid);
+  s.revisadoProfesor = !s.revisadoProfesor;
+  persist(); openStudentDetail(sid); renderResultadosTable(); renderNav();
+}
+
+function exportStudentPDF(sid){
+  const s = state.students.find(x=>x.id===sid);
+  const sc = computeStudentScore(s);
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF();
+  let y=18;
+  doc.setFont('helvetica','bold'); doc.setFontSize(16);
+  doc.text('Reporte individual de evaluación', 14, y); y+=8;
+  doc.setFontSize(11); doc.setFont('helvetica','normal');
+  doc.text(`Estudiante: ${s.nombre||s.filename}`, 14, y); y+=6;
+  if(s.grupo){ doc.text(`Grupo: ${s.grupo}`, 14, y); y+=6; }
+  doc.text(`Calificación: ${sc.calif} / 10`, 14, y); y+=10;
+
+  doc.setFont('helvetica','bold'); doc.text('Resultados por pregunta', 14, y); y+=6;
+  doc.setFont('helvetica','normal');
+  s.resultados.forEach(r=>{
+    const line = `P${r.numero} — ${evalTagLabel(r.evaluacion)} — ${r.puntos_obtenidos} pts — ${r.justificacion||''}`;
+    const split = doc.splitTextToSize(line, 180);
+    if(y+split.length*5 > 280){ doc.addPage(); y=18; }
+    doc.text(split, 14, y); y += split.length*5 + 2;
+  });
+
+  y+=4; if(y>260){ doc.addPage(); y=18; }
+  doc.setFont('helvetica','bold'); doc.text('Dominio por tema', 14, y); y+=6;
+  doc.setFont('helvetica','normal');
+  Object.entries(sc.dominio).forEach(([tema,pct])=>{
+    doc.text(`${tema}: ${pct}%`, 14, y); y+=5.5;
+  });
+
+  y+=4; if(y>250){ doc.addPage(); y=18; }
+  const fb = s.retroalimentacion||{};
+  doc.setFont('helvetica','bold'); doc.text('Retroalimentación', 14, y); y+=6;
+  doc.setFont('helvetica','normal');
+  const fbLines = doc.splitTextToSize(fb.recomendaciones||'', 180);
+  doc.text(fbLines, 14, y); y += fbLines.length*5+6;
+
+  const plan = s.plan_estudio||{};
+  if(y>250){ doc.addPage(); y=18; }
+  doc.setFont('helvetica','bold'); doc.text('Plan de estudio — '+(plan.tema_prioritario||''), 14, y); y+=6;
+  doc.setFont('helvetica','normal');
+  (plan.actividades||[]).forEach((a,i)=>{
+    const l = doc.splitTextToSize(`${i+1}. ${a}`,180);
+    doc.text(l,14,y); y+=l.length*5+1;
+  });
+
+  doc.save(`reporte_${(s.nombre||s.filename).replace(/\s+/g,'_')}.pdf`);
+}
+
+function exportGroupCSV(){
+  const rows = [['Estudiante','Grupo','Calificacion','Fortalezas','Tema a reforzar','Estado']];
+  state.students.filter(s=>s.resultados).forEach(s=>{
+    const sc = computeStudentScore(s);
+    const fortalezas = (s.retroalimentacion&&s.retroalimentacion.fortalezas||[]).join(' | ');
+    const temaDebil = Object.entries(sc.dominio).sort((a,b)=>a[1]-b[1])[0];
+    rows.push([s.nombre||s.filename, s.grupo||'', sc.calif, fortalezas, temaDebil?temaDebil[0]:'', s.revisadoProfesor?'Revisado':'Pendiente']);
+  });
+  const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(["\uFEFF"+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='resultados_grupo.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ---------------- ANÁLISIS GRUPAL ---------------- */
+function renderGrupal(main){
+  const graded = state.students.filter(s=>s.resultados);
+  if(!graded.length){
+    main.innerHTML = `<div class="page-head"><div><div class="eyebrow">GRUPO COMPLETO</div><h1>Análisis grupal</h1></div></div>
+    <div class="empty"><strong>Aún no hay exámenes calificados.</strong>El análisis grupal aparecerá aquí cuando el agente haya calificado al menos un examen.</div>`;
+    return;
+  }
+  const ga = groupAnalysis();
+  const peor = ga.temas[0];
+  const mejor = ga.temas[ga.temas.length-1];
+
+  main.innerHTML = `
+    <div class="page-head">
+      <div><div class="eyebrow">GRUPO COMPLETO · ${ga.n} estudiantes evaluados</div>
+      <h1>Análisis grupal</h1>
+      <p>Comportamiento del grupo por tema, con base en todos los exámenes ya calificados.</p></div>
+      <button class="secondary" onclick="exportGroupCSV()">Exportar CSV</button>
+    </div>
+    <div class="grid-3">
+      <div class="stat"><div class="num">${ga.promedioGrupo}</div><div class="label">Promedio del grupo (sobre 10)</div></div>
+      <div class="stat"><div class="num" style="font-size:19px;">${peor?peor.tema:'—'}</div><div class="label">Tema con mayor dificultad</div></div>
+      <div class="stat"><div class="num" style="font-size:19px;">${mejor?mejor.tema:'—'}</div><div class="label">Tema con mayor dominio</div></div>
+    </div>
+
+    <div class="card">
+      <h3>Dominio por tema</h3>
+      ${ga.temas.map(t=>`
+        <div style="margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; font-size:13px;">
+            <span>${domIcon(t.avg)} ${t.tema}</span>
+            <span>${t.avg}% de dominio promedio — ${t.low} de ${t.total} estudiantes con dificultad</span>
+          </div>
+          <div class="bar-wrap"><div class="bar-fill" style="width:${t.avg}%; background:var(--${domColor(t.avg)});"></div></div>
+        </div>`).join('')}
+    </div>
+
+    <div class="card">
+      <h3>Errores más frecuentes en el grupo</h3>
+      ${ga.errores.length? `<table><thead><tr><th>Tipo de error</th><th>Frecuencia</th></tr></thead><tbody>
+        ${ga.errores.map(([tipo,count])=>`<tr><td>${errorLabel(tipo)}</td><td>${count}</td></tr>`).join('')}
+      </tbody></table>` : '<div class="empty">Sin errores registrados.</div>'}
+    </div>
+
+    <div class="card">
+      <h3>Recomendación del agente para el profesor</h3>
+      <p style="font-size:15px;">${peor ? `El tema que requiere mayor atención en el grupo es <strong>${peor.tema}</strong>: ${peor.low} de ${peor.total} estudiantes presentan dificultades (dominio promedio ${peor.avg}%). Se recomienda dedicar una sesión de reforzamiento antes de avanzar al siguiente contenido.` : 'Aún no hay suficiente información para generar una recomendación.'}</p>
+      ${mejor && mejor.tema!==peor.tema ? `<p style="color:var(--ink-soft);">En contraste, el grupo muestra buen dominio en <strong>${mejor.tema}</strong> (${mejor.avg}%), por lo que puede avanzarse con confianza en ese tema.</p>`:''}
+    </div>
+  `;
+}
+function errorLabel(tipo){
+  const map = {error_procedimiento:'Error de procedimiento', error_calculo:'Error de cálculo', error_conceptual:'Error conceptual',
+    confusion_signos:'Confusión de signos', confusion_conceptos:'Confusión de conceptos', falta_procedimiento:'Falta de procedimiento',
+    respuesta_incompleta:'Respuesta incompleta', respuesta_ilegible:'Respuesta ilegible', sin_contestar:'Pregunta sin contestar'};
+  return map[tipo]||tipo;
+}
+
+/* ---------------- PLANES DE ESTUDIO ---------------- */
+function renderPlanes(main){
+  const graded = state.students.filter(s=>s.plan_estudio);
+  main.innerHTML = `
+    <div class="page-head">
+      <div><div class="eyebrow">SEGUIMIENTO</div>
+      <h1>Planes de estudio</h1>
+      <p>Un plan personalizado por estudiante, generado a partir de sus errores específicos.</p></div>
+    </div>
+    ${!graded.length? '<div class="empty"><strong>Aún no hay planes generados.</strong>Aparecerán aquí después de calificar exámenes en "Evaluaciones".</div>' :
+      graded.map(s=>`
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0;">${s.nombre||s.filename}</h3>
+            <span class="pill">Prioridad: ${s.plan_estudio.tema_prioritario||'—'}</span>
+          </div>
+          <ol>${(s.plan_estudio.actividades||[]).map(a=>`<li>${a}</li>`).join('')}</ol>
+          <button class="secondary small" onclick="state.section='resultados'; renderAll(); openStudentDetail('${s.id}');">Ver reporte completo</button>
+        </div>`).join('')
+    }
+  `;
+}
+
+/* ---------------- CONFIGURACIÓN ---------------- */
+function renderConfig(main){
+  main.innerHTML = `
+    <div class="page-head">
+      <div><div class="eyebrow">AJUSTES</div><h1>Configuración</h1>
+      <p>Parámetros del agente y notas de arquitectura.</p></div>
+    </div>
+    <div class="card">
+      <h3>Umbrales de confianza</h3>
+      <div class="grid-2">
+        <div><label>Alta confianza desde (%)</label><input type="number" value="${state.confThresholds.alta}" onchange="state.confThresholds.alta=parseInt(this.value); renderAll();"></div>
+        <div><label>Confianza media desde (%)</label><input type="number" value="${state.confThresholds.media}" onchange="state.confThresholds.media=parseInt(this.value); renderAll();"></div>
+      </div>
+      <p style="color:var(--ink-soft); font-size:12.5px; margin-top:8px;">Por debajo del umbral medio, la respuesta se marca automáticamente como "requiere revisión".</p>
+    </div>
+    <div class="card">
+      <h3>Arquitectura</h3>
+      <p style="color:var(--ink-soft);">Separación de responsabilidades de este agente:</p>
+      <ul style="color:var(--ink-soft);">
+        <li><strong>Frontend</strong> — esta interfaz (HTML/CSS/JS).</li>
+        <li><strong>Procesamiento de archivos</strong> — pdf.js convierte cada página del PDF en una imagen.</li>
+        <li><strong>Visión / interpretación</strong> — modelo Claude con capacidad de visión (claude-sonnet-4-6), vía la API de Anthropic.</li>
+        <li><strong>Motor de evaluación</strong> — funciones de cálculo de puntos, dominio por tema y calificación final.</li>
+        <li><strong>Lógica del agente</strong> — ciclo Observar → Analizar → Decidir → Ejecutar → Verificar → Reportar en cada evaluación.</li>
+        <li><strong>Base de datos</strong> — almacenamiento persistente del navegador (resultados y configuración; las imágenes de los exámenes se mantienen solo en la sesión actual, por tamaño).</li>
+        <li><strong>API de IA</strong> — en este entorno la llamada a la API de Anthropic se realiza sin exponer ninguna clave en el código. Si esta aplicación se despliega fuera de este entorno, la llamada a la API debe hacerse desde un servidor propio, con la clave guardada como variable de entorno del lado del servidor — nunca en el HTML/JS del cliente.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Datos</h3>
+      <p style="color:var(--ink-soft);">Borra toda la información cargada (examen oficial, estudiantes y calificaciones) en este navegador.</p>
+      <button class="danger" onclick="resetAll()">Borrar todos los datos</button>
+    </div>
+  `;
+}
+async function resetAll(){
+  if(!confirm('¿Borrar el examen oficial, todos los estudiantes y calificaciones? Esta acción no se puede deshacer.')) return;
+  state.officialExam=null; state.students=[];
+  await persist();
+  renderAll();
+  toast('Datos borrados');
+}
+
+/* ============================================================
+   ARRANQUE
+   ============================================================ */
+async function init(){
+  await loadPersisted();
+  renderAll();
+}
+init();
+</script>
+</body>
+</html>
